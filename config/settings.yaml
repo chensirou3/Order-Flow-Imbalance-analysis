@@ -1,0 +1,56 @@
+# OFI Factor Research Project Configuration
+
+# 交易品种列表
+symbols:
+  - BTCUSD
+  - ETHUSD
+  - EURUSD
+  - USDJPY
+  - XAGUSD
+  - XAUUSD
+
+# 数据路径配置
+data_paths:
+  ticks_dir: data/ticks
+  bars_dir: data/bars
+
+# 数据过滤（可选）
+# 如果不设置，将加载所有可用数据
+data:
+  start_date: null            # null = 使用全部历史数据
+  end_date: null              # null = 到最新数据
+  # start_date: "2020-01-01"  # 可选：限制开始日期进行快速测试
+  # end_date: "2021-12-31"    # 可选：限制结束日期
+
+# K线设置
+bar_settings:
+  default_bar_size: "4H"
+  # 多时间周期分析
+  bar_sizes:
+    - "5min"   # 5分钟
+    - "15min"  # 15分钟
+    - "30min"  # 30分钟
+    - "1H"     # 1小时
+    - "2H"     # 2小时
+    - "4H"     # 4小时
+    - "8H"     # 8小时
+    - "1D"     # 1天
+
+# OFI因子参数
+ofi:
+  bar_size: "4H"  # 单次运行使用的周期（被bar_sizes覆盖）
+  zscore_window: 200  # OFI标准化的滚动窗口
+
+# 结果输出路径
+results_paths:
+  bars_with_ofi_dir: results
+  sanity_dir: results/sanity
+  single_factor_dir: results/single_factor
+
+# 分析参数
+analysis:
+  horizons: [2, 5, 10]  # 未来收益的时间跨度（以K线数量计）
+  quantile_low: 0.10    # OFI_z低分位数阈值
+  quantile_high: 0.90   # OFI_z高分位数阈值
+  n_bins: 5             # 分位数分析的分组数量
+

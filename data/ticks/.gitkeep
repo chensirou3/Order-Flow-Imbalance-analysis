@@ -1,0 +1,4 @@
+# 将tick数据CSV文件放在此目录
+# 文件命名格式: {SYMBOL}_ticks*.csv
+# 例如: BTCUSD_ticks_2017_2024.csv
+
