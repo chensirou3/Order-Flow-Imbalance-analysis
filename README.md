@@ -2,22 +2,34 @@
 
 这是一个专注于研究**订单流失衡（Order Flow Imbalance, OFI）**因子的独立项目。
 
-## 🎉 项目状态：已完成
+## 🎉 项目状态：Phase 4 已完成
 
-**完成时间**: 2025-11-19
-**分析状态**: ✅ 全部完成
+**最新更新**: 2025-11-19
+**当前阶段**: Phase 4 - 交易路径分析 ✅
 
+### Phase 3 核心发现（单因子诊断）
 - ✅ 6个品种（BTCUSD, ETHUSD, EURUSD, USDJPY, XAGUSD, XAUUSD）
 - ✅ 8个时间周期（5min, 15min, 30min, 1H, 2H, 4H, 8H, 1D）
 - ✅ 48个合并文件，9,247,557行数据
-- ✅ 完整分析报告已生成
 
-**核心发现**:
+**Phase 3 Top 3**:
 - 🥇 **ETHUSD 1D**: Q5-Q1收益差 4.09%, Sharpe 1.89
-- 🥈 **BTCUSD 8H**: Q5-Q1收益差 0.80%, Sharpe 2.32（最高）
+- 🥈 **BTCUSD 8H**: Q5-Q1收益差 0.80%, Sharpe 2.32
 - 🥉 **ETHUSD 8H**: Q5-Q1收益差 1.09%, Sharpe 1.15
 
 详见 [FINAL_ANALYSIS_COMPLETE.md](FINAL_ANALYSIS_COMPLETE.md)
+
+### Phase 4 核心发现（交易路径分析）
+- ✅ 4个品种（BTCUSD, ETHUSD, XAUUSD, XAGUSD）- 仅加密货币和贵金属
+- ✅ 32个配置，311,720笔交易
+- ✅ 完整交易路径统计（MFE, MAE, t_MFE, 出场原因等）
+
+**Phase 4 Top 3**:
+- 🥇 **BTCUSD 8H**: 期望值R 1.503, Sharpe 0.142, MFE_R 4.103
+- 🥈 **BTCUSD 4H**: 期望值R 1.273, Sharpe 0.132, MFE_R 3.307
+- 🥉 **ETHUSD 1D**: 期望值R 1.208, Sharpe 0.136, MFE_R 3.493
+
+详见 [PHASE4_FINAL_RESULTS.md](PHASE4_FINAL_RESULTS.md)
 
 ## 项目概述
 
@@ -49,12 +61,22 @@
 - ✅ 相关性分析
 - ✅ Sharpe比率计算
 
-### ✅ Phase 4 – 大规模分析（已完成）
-- ✅ 6个品种全覆盖
-- ✅ 8个时间周期全覆盖
-- ✅ 服务器批处理优化
-- ✅ 内存管理优化（OOM问题解决）
-- ✅ 完整分析报告生成
+### ✅ Phase 4 – 交易路径分析（已完成 2025-11-19）
+- ✅ 基于OFI_z的信号生成（趋势/反转模式）
+- ✅ 交易路径模拟（MFE, MAE, t_MFE跟踪）
+- ✅ 动态出场规则（从峰值回撤止损）
+- ✅ R倍数统计（期望值、Sharpe、胜率）
+- ✅ 32个配置完整分析（311,720笔交易）
+- ✅ 跨资产汇总和排名
+
+**关键成果**:
+- BTCUSD 8H: 期望值R 1.503（最高）
+- BTCUSD 4H: 期望值R 1.273
+- ETHUSD 1D: 期望值R 1.208
+- 详细交易路径特征分析
+- 止盈/止损策略设计依据
+
+详见 [PHASE4_FINAL_RESULTS.md](PHASE4_FINAL_RESULTS.md) 和 [PHASE4_QUICKSTART.md](PHASE4_QUICKSTART.md)
 
 ## 快速开始
 

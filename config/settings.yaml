@@ -54,3 +54,60 @@ analysis:
   quantile_high: 0.90   # OFI_z高分位数阈值
   n_bins: 5             # 分位数分析的分组数量
 
+# Phase 4: Trade Path Analysis Configuration
+# 只分析加密货币和贵金属（外汇已证明无效）
+trade_path_symbols:
+  - BTCUSD
+  - ETHUSD
+  - XAUUSD
+  - XAGUSD
+
+# 时间周期（使用简化命名）
+timeframes:
+  - 5min
+  - 15min
+  - 30min
+  - 1H
+  - 2H
+  - 4H
+  - 8H
+  - 1D
+
+# 路径配置
+paths:
+  results_dir: results
+  bars_with_ofi_pattern: "results/{symbol}_{tf}_merged_bars_with_ofi.csv"
+  trade_path_dir: results/trade_paths
+  trade_summary_dir: results/trade_summaries
+
+# OFI交易路径分析参数
+ofi_trade_path:
+  # 入场模式: "trend" 或 "reversal"
+  # - "trend": Q_high → 做多, Q_low → 做空 (方向 = sign(OFI_z))
+  # - "reversal": Q_high → 做空, Q_low → 做多 (方向 = -sign(OFI_z))
+  entry_mode: "trend"
+
+  # OFI_z入场分位数阈值
+  entry_q_high: 0.8   # 例如: OFI_z >= 80%分位数
+  entry_q_low: 0.2    # 例如: OFI_z <= 20%分位数
+
+  # ATR设置（用于R倍数计算）
+  atr_period: 20
+  atr_method: "rolling_mean"    # 或 "ema" 使用指数移动平均
+
+  # 最大持仓限制（bars）
+  hmax_bars: 150
+
+  # 出场规则: 当 loss_in_R <= -MFE_R 或达到 Hmax 时出场
+  # MFE_R: Maximum Favorable Excursion in R-multiples
+  # 这意味着如果价格从最优点回撤到入场点以下，就出场
+
+  # 是否保存完整的逐bar路径（除了交易摘要）
+  save_paths: false
+
+  # 固定仓位大小（名义价值）
+  fixed_position_size: 1.0
+
+  # 是否计算并保存详细统计
+  compute_detailed_stats: true
+
