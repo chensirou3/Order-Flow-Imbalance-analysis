@@ -111,3 +111,51 @@ ofi_trade_path:
   # 是否计算并保存详细统计
   compute_detailed_stats: true
 
+# ============================================================================
+# Phase 5: Parameter Optimization & Cost Overlay
+# ============================================================================
+ofi_param_sweep:
+  # Which symbol+timeframe pairs to include in Phase 5
+  # (start with the top configs from Phase 4, but keep it flexible)
+  symbols:
+    - BTCUSD
+    - ETHUSD
+
+  timeframes:
+    - 8H
+    - 4H
+    - 1D
+
+  # OFI_z entry quantile pairs to test: (q_high, q_low)
+  ofi_quantile_sets:
+    - [0.80, 0.20]
+    - [0.85, 0.15]
+    - [0.75, 0.25]
+
+  # Hmax candidates (max holding bars)
+  hmax_candidates:
+    - 80
+    - 100
+    - 150
+
+  # Static TP levels in R (optional)
+  # null (or 0) means "no TP, use trailing exit only"
+  tp_R_levels:
+    - null     # no TP
+    - 2.0
+    - 3.0
+    - 4.0
+
+  # Transaction cost scenarios (round-trip costs)
+  # cost_rate is a PER-SIDE fraction of price (e.g., 0.00003 = 0.003%)
+  # We'll assume two symmetric sides (entry + exit)
+  cost_scenarios:
+    - name: "low_cost"
+      per_side_rate: 0.00003   # 0.003% per side
+    - name: "high_cost"
+      per_side_rate: 0.0007    # 0.07% per side
+
+  # Where to read base bar+OFI and where to write results
+  paths:
+    bars_with_ofi_pattern: "results/{symbol}_{tf}_merged_bars_with_ofi.csv"
+    sweep_results_dir: "results/param_sweep"

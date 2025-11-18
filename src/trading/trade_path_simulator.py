@@ -1,15 +1,51 @@
 """
-Phase 4.2: Trade Path Simulation
+Phase 4.2 & 5: Trade Path Simulation
 
 Simulate individual trades with detailed path tracking:
 - Entry based on OFI_z signals
 - Exit when loss_in_R <= -MFE_R or Hmax bars reached
+- Phase 5: Added optional static TP (take profit) in R-multiples
 - Track MFE, MAE, t_MFE, final R, exit reason, etc.
 """
 
 import pandas as pd
 import numpy as np
 from typing import List, Dict, Optional
+from dataclasses import dataclass
+from enum import Enum
+
+
+class EntryMode(Enum):
+    """Entry mode for OFI signals."""
+    TREND = "trend"        # Q_high → long, Q_low → short
+    REVERSAL = "reversal"  # Q_high → short, Q_low → long
+
+
+@dataclass
+class TradePathConfig:
+    """
+    Configuration for trade path simulation.
+
+    Attributes:
+        entry_mode: "trend" or "reversal"
+        entry_q_high: High quantile threshold (e.g., 0.8)
+        entry_q_low: Low quantile threshold (e.g., 0.2)
+        atr_period: ATR calculation period
+        atr_method: "rolling_mean" or "ema"
+        hmax_bars: Maximum holding period in bars
+        tp_R: Optional static take profit in R-multiples (None = no TP)
+        position_size: Fixed position size (notional)
+        save_paths: Whether to save bar-by-bar path history
+    """
+    entry_mode: str = "trend"
+    entry_q_high: float = 0.8
+    entry_q_low: float = 0.2
+    atr_period: int = 20
+    atr_method: str = "rolling_mean"
+    hmax_bars: int = 150
+    tp_R: Optional[float] = None  # New for Phase 5
+    position_size: float = 1.0
+    save_paths: bool = False
 
 
 class Trade:
@@ -44,7 +80,7 @@ class Trade:
         self.exit_idx = None
         self.exit_time = None
         self.exit_price = None
-        self.exit_reason = None  # "stop", "hmax", or "end_of_data"
+        self.exit_reason = None  # "stop", "tp_hit", "hmax", or "end_of_data"
         self.final_r = None
         self.final_pnl = None
         
@@ -120,13 +156,18 @@ def simulate_trade_paths(
     df: pd.DataFrame,
     hmax_bars: int = 150,
     position_size: float = 1.0,
-    save_paths: bool = False
+    save_paths: bool = False,
+    tp_R: Optional[float] = None
 ) -> pd.DataFrame:
     """
     Simulate trades based on signals in the dataframe.
-    
-    Exit rule: Exit when loss_in_R <= -MFE_R or when Hmax bars reached.
-    
+
+    Exit rules:
+    1. Static TP: If tp_R is set and current_R >= tp_R, exit with "tp_hit"
+    2. Trailing stop: Exit when loss_in_R <= -MFE_R (give back all profit)
+    3. Hmax: Exit when bars_held >= hmax_bars
+    4. End of data
+
     Parameters
     ----------
     df : pd.DataFrame
@@ -138,7 +179,9 @@ def simulate_trade_paths(
         Fixed position size (notional)
     save_paths : bool
         Whether to save bar-by-bar path history
-    
+    tp_R : Optional[float]
+        Static take profit level in R-multiples (None = no TP)
+
     Returns
     -------
     pd.DataFrame
@@ -162,23 +205,29 @@ def simulate_trade_paths(
             exit_triggered = False
             exit_reason = None
 
-            # Exit condition 1: Loss from peak (loss_in_R <= -MFE_R)
+            # Exit condition 1: Static TP (Phase 5)
+            if tp_R is not None and current_r >= tp_R:
+                exit_triggered = True
+                exit_reason = "tp_hit"
+
+            # Exit condition 2: Loss from peak (loss_in_R <= -MFE_R)
             # This means: if we've made profit (MFE_R > 0), exit if we give it all back
-            if active_trade.mfe_r > 0:
+            if not exit_triggered and active_trade.mfe_r > 0:
                 loss_from_peak = current_r - active_trade.mfe_r
                 if loss_from_peak <= -active_trade.mfe_r:
                     exit_triggered = True
                     exit_reason = "stop"
 
-            # Exit condition 2: Maximum holding period
-            if active_trade.bars_held >= hmax_bars:
+            # Exit condition 3: Maximum holding period
+            if not exit_triggered and active_trade.bars_held >= hmax_bars:
                 exit_triggered = True
                 exit_reason = "hmax"
 
-            # Exit condition 3: End of data
+            # Exit condition 4: End of data
             if idx == len(df) - 1:
                 exit_triggered = True
-                exit_reason = "end_of_data"
+                if exit_reason is None:
+                    exit_reason = "end_of_data"
 
             # Execute exit if triggered
             if exit_triggered:
@@ -264,6 +313,7 @@ def analyze_trade_statistics(trade_df: pd.DataFrame) -> Dict:
 
         # Exit reasons
         'pct_stop': (trade_df['exit_reason'] == 'stop').mean(),
+        'pct_tp_hit': (trade_df['exit_reason'] == 'tp_hit').mean(),
         'pct_hmax': (trade_df['exit_reason'] == 'hmax').mean(),
         'pct_end_of_data': (trade_df['exit_reason'] == 'end_of_data').mean(),
 
@@ -274,3 +324,84 @@ def analyze_trade_statistics(trade_df: pd.DataFrame) -> Dict:
 
     return stats
 
+
+def simulate_ofi_trade_paths_for_df(
+    symbol: str,
+    timeframe: str,
+    df: pd.DataFrame,
+    cfg: TradePathConfig
+) -> pd.DataFrame:
+    """
+    High-level wrapper for trade path simulation with TradePathConfig.
+
+    This function is used by Phase 5 parameter sweep.
+
+    Parameters
+    ----------
+    symbol : str
+        Symbol name (e.g., "BTCUSD")
+    timeframe : str
+        Timeframe (e.g., "8H")
+    df : pd.DataFrame
+        Bar data with OFI_z and OHLC columns (ATR will be computed if missing)
+    cfg : TradePathConfig
+        Configuration object
+
+    Returns
+    -------
+    pd.DataFrame
+        Trade summary with columns:
+        - symbol, timeframe
+        - entry_time, exit_time, direction
+        - entry_price, exit_price, ATR_entry
+        - bars_held, MFE_R, MAE_R, t_MFE
+        - final_R (gross, pre-cost)
+        - exit_reason
+    """
+    # Ensure required columns exist (except ATR which we'll compute)
+    required_cols = ['OFI_z', 'open', 'high', 'low', 'close']
+    missing = [col for col in required_cols if col not in df.columns]
+    if missing:
+        raise ValueError(f"Missing required columns: {missing}")
+
+    # Compute ATR if not present
+    from ..trading.ofi_signals import compute_atr, generate_ofi_signals
+
+    df_copy = df.copy()
+    if 'ATR' not in df_copy.columns:
+        df_copy = compute_atr(df_copy, period=cfg.atr_period, method=cfg.atr_method)
+
+    # Generate signals based on OFI_z quantiles
+    df_with_signals = generate_ofi_signals(
+        df_copy,
+        entry_mode=cfg.entry_mode,
+        entry_q_high=cfg.entry_q_high,
+        entry_q_low=cfg.entry_q_low
+    )
+
+    # Run simulation
+    trades_df = simulate_trade_paths(
+        df_with_signals,
+        hmax_bars=cfg.hmax_bars,
+        position_size=cfg.position_size,
+        save_paths=cfg.save_paths,
+        tp_R=cfg.tp_R
+    )
+
+    if trades_df.empty:
+        return trades_df
+
+    # Add symbol and timeframe
+    trades_df['symbol'] = symbol
+    trades_df['timeframe'] = timeframe
+
+    # Rename columns to match expected output format
+    trades_df = trades_df.rename(columns={
+        'atr': 'ATR_entry',
+        'mfe_r': 'MFE_R',
+        'mae_r': 'MAE_R',
+        't_mfe': 't_MFE',
+        'final_r': 'final_R'
+    })
+
+    return trades_df
