@@ -159,3 +159,91 @@ ofi_param_sweep:
   paths:
     bars_with_ofi_pattern: "results/{symbol}_{tf}_merged_bars_with_ofi.csv"
     sweep_results_dir: "results/param_sweep"
+
+# ============================================================================
+# Phase 6: Advanced Analysis & Strategy Spec Generation
+# ============================================================================
+phase6:
+  # 6A: Long vs Short leg decomposition + Regime analysis
+  long_short_regime:
+    # Which symbol+timeframe pairs to analyze (default = same as Phase 5)
+    symbols:
+      - BTCUSD
+      - ETHUSD
+    timeframes:
+      - 8H
+      - 4H
+      - 1D
+
+    # Regime definitions
+    trend:
+      ma_period: 200              # for close vs MA200 regime
+      strong_trend_quantile: 0.7  # trend strength >= 70% quantile
+      weak_trend_quantile: 0.3    # trend strength <= 30% quantile
+
+    volatility:
+      vol_measure: "atr"          # or "true_range_std"
+      high_vol_quantile: 0.7      # volatility >= 70% quantile
+      low_vol_quantile: 0.3       # volatility <= 30% quantile
+
+    # Output paths
+    paths:
+      trade_paths_pattern: "results/trade_paths/individual_trades/{symbol}_{tf}_trades.csv"
+      bars_with_ofi_pattern: "results/{symbol}_{tf}_merged_bars_with_ofi.csv"
+      long_short_dir: "results/long_short"
+
+  # 6B: OFI × ManipScore joint signal design & diagnostics
+  ofi_manipscore_joint:
+    # Where to find ManipScore bars
+    bars_with_ms_pattern: "results_ms/{symbol}_{tf}_bars_with_manipscore.csv"
+
+    # Where to save joined OFI+MS bars
+    bars_with_ofi_ms_pattern: "results_joint/{symbol}_{tf}_bars_with_ofi_ms.csv"
+
+    # OFI_z and ManipScore thresholds for joint signals
+    ofi_abs_q: 0.9      # |OFI_z| >= this quantile
+    ms_q: 0.9           # ManipScore >= this quantile
+
+    # Timeframes/symbols to try joint signals on
+    symbols:
+      - BTCUSD
+      - ETHUSD
+    timeframes:
+      - 8H
+      - 4H
+      - 1D
+
+    # Use best OFI-only config from Phase 5 for simulation parameters
+    # (ATR, Hmax, trailing exit logic)
+    use_phase5_best_config: true
+
+    # Output paths
+    paths:
+      bars_with_ofi_pattern: "results/{symbol}_{tf}_merged_bars_with_ofi.csv"
+      joint_results_dir: "results/joint"
+
+  # 6C: Strategy Spec generator
+  strategy_spec:
+    # Top configs to convert into strategy specs
+    # (from Phase 5 ranking)
+    top_n_per_symbol: 3
+
+    # Input ranking file from Phase 5
+    ranking_file: "results/param_sweep/ofi_param_sweep_ranking.csv"
+
+    # Output directory for strategy spec markdown files
+    out_dir: "docs/strategy_specs"
+
+    # Ranking criteria (which metric to use for selecting top configs)
+    ranking_metric: "mean_final_R_net_high_cost"  # or "sharpe_R_net_high_cost"
+
+    # Include these sections in the strategy spec
+    include_sections:
+      - overview
+      - market_and_timeframe
+      - factor_construction
+      - entry_rules
+      - exit_rules
+      - transaction_costs
+      - historical_performance
+      - notes_and_caveats
